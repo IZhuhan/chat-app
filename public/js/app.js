@@ -1,32 +1,3 @@
-// User singltone
-const User = ( function () {
-    let user = '';
-    let instance;
-
-    const getUser = function () {
-        return user;
-    };
-
-    const setUser = async function ( name ) {
-        user = name;
-
-        return user;
-    };
-
-    const createInstance = function () {
-        return {
-            getUser,
-            setUser
-        };
-    };
-
-    return {
-        getInstance: function () {
-            return instance || ( instance = createInstance() );
-        }
-    };
-})();
-
 // Init user
 const currentUser = User.getInstance();
 
@@ -42,6 +13,11 @@ const userName = loginForm.elements[ 'username' ];
 
 const messageForm = document.forms[ 'send-message' ];
 const messageInput = messageForm.elements[ 'message' ];
+
+const roomsList = document.querySelector( '.rooms-list' );
+
+// Init local var
+let currentRoom;
 
 loginForm.addEventListener( 'submit', function ( e ) {
     e.preventDefault();
@@ -64,13 +40,24 @@ messageForm.addEventListener( 'submit', function ( e ) {
     messageForm.reset();
 });
 
+roomsList.addEventListener( 'click', function ( e ) {
+    if ( e.target.dataset.roomIndex ) {
+        let index = e.target.dataset.roomIndex;
+
+        socket.emit( 'roomchange', index );
+        $( '.sidenav' ).sidenav( 'close' );
+    }
+});
+
 // Socket events
-socket.on( 'welcome', () => {
+socket.on( 'welcome', room => {
+    currentRoom = room;
+
     ui.hideLogin();
     ui.showAuthorized( currentUser.getUser() );
+    ui.showRoomName( currentRoom );
 });
 socket.on( 'rooms', rooms => ui.generateRooms( rooms ) );
-socket.on( 'updateusers', users => ui.generateUsersInRoom( users ) );
 socket.on( 'chat message', message => {
     if ( message.username === currentUser.getUser() ) {
         ui.addMessage( message, 'from' );
@@ -79,3 +66,15 @@ socket.on( 'chat message', message => {
     }
 });
 socket.on( 'new user joined', user => ui.newUserJoin( user ) );
+socket.on( 'roommates', ( { usernames } ) => {
+    let users = Object.keys( usernames )
+                     .filter( user => usernames[ user ].room === currentRoom )
+                     .map( user => {
+                         usernames[ user ].name = user;
+
+                         return usernames[ user ];
+                     });
+
+    ui.generateUsersInRoom( users );
+});
+socket.on( 'has left the room', user => ui.userLeft( user ) );

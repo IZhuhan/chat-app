@@ -76,6 +76,6 @@ io.on('connection', socket => {
     socket.emit('welcome', socket.room);
 
     socket.broadcast.to(socket.room).emit('new user joined', socket.username);
-    socket.emit('roommates', { usernames, room: socket.room });
+    io.emit('roommates', { usernames, room: socket.room });
   });
 });
